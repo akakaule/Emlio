@@ -1,8 +1,14 @@
-# Sonic-stil platformspil med 3 baner, svampe, spoegelser og bosskamp
+# Sonic-stil platformspil med 3 baner, monstre, boss, moenter og fireballs
 #
 # Bane 1: Skoven        - kun svampe
 # Bane 2: Spoegelses-grotten - spoegelser + nogle svampe
-# Bane 3: Skildpadde-bossen  - bosskamp uden scrolling
+# Bane 3: Skildpadde-bossen  - bosskamp; bossen kaster ildkugler
+#
+# Moent-system:
+#   - Saml moenter rundt om paa banerne
+#   - 1 moent per monster du draeber
+#   - Boss giver 10 moenter
+#   - For hver 10 moenter faar du 1 ekstra liv
 #
 # Kontroller:
 #   I menuen:               L = LET, S = SVAER
@@ -28,13 +34,21 @@ TYNGDEKRAFT = 0.6
 SPRING_KRAFT = -13
 LOEBE_FART = 4
 MAX_FALD_FART = 16
-USAARLIG_FRAMES = 60       # ca. 1 sekund efter at vaere blevet ramt
-RESPAWN_FRAMES = 300       # 5 sekunder ved 60 fps
-SQUASH_FRAMES = 30         # halvt sekund flad svamp/fadende spoegelse
-STOMP_BOUNCE = 0.7         # bounce-styrke efter stomp
-BOSS_INVULN_FRAMES = 60    # boss er kortvarigt usaarlig efter et hit
-BANE_SKIFT_FRAMES = 120    # 2 sek "Bane fuldfoert!"-besked
-PIXEL_SIZE = 4             # C64-pixelering
+USAARLIG_FRAMES = 60
+RESPAWN_FRAMES = 300
+SQUASH_FRAMES = 30
+STOMP_BOUNCE = 0.7
+BOSS_INVULN_FRAMES = 60
+BANE_SKIFT_FRAMES = 120
+PIXEL_SIZE = 4
+
+MOENTER_PER_LIV = 10           # for hver 10 moenter faar man et ekstra liv
+BOSS_BONUS_MOENTER = 10        # bossen giver saa mange moenter naar man besejrer ham
+
+FIREBALL_FART = 5.0
+FIREBALL_INTERVAL_LET = 110    # frames mellem fireballs paa LET
+FIREBALL_INTERVAL_SVAER = 65   # frames mellem fireballs paa SVAER
+FIREBALL_STR = 16              # stoerrelse paa fireball-kollisionsboks
 
 START_X = 50
 START_Y = 470
@@ -42,7 +56,7 @@ START_Y = 470
 # ============================================================
 # Spil-tilstand (aendrer sig mens man spiller)
 # ============================================================
-spil_tilstand = "menu"     # "menu", "spiller", "bane_skift", "tabt", "vandt_alt"
+spil_tilstand = "menu"
 svaerhed = "let"
 bane_nr = 1
 bane_skift_timer = 0
@@ -52,28 +66,29 @@ spiller_vy = 0
 paa_jorden = False
 spiller_facing = 1
 liv = 3
+moenter = 0
 usaarlig_timer = 0
 camera_x = 0
 
-# Banens elementer (fyldes naar man starter en bane)
 jord_stykker = []
 flydende_platforme = []
 alle_platforme = []
 skyer = []
 svampe = []
 spoegelser = []
+moenter_liste = []
 boss = None
 maal_x = None
 world_width = 800
 bane_navn = ""
 
-# Sprites bygges paa foerste frame
 sprite_sonic_hoejre = None
 sprite_sonic_venstre = None
 sprite_svampe = {}
 sprite_svampe_flat = {}
 sprite_spoegelse = None
 sprite_boss = None
+sprite_moent = None
 
 # ============================================================
 # Sprite-tegning
@@ -117,13 +132,11 @@ def lav_svamp_sprite(hat_farve, prik_farve):
 
 
 def lav_svamp_flat_sprite(hat_farve, prik_farve):
-    """Den flade version af en svamp - den der vises lige efter et stomp."""
     surf = pygame.Surface((40, 8), pygame.SRCALPHA)
     pygame.draw.ellipse(surf, hat_farve, Rect(0, 0, 40, 8))
     pygame.draw.circle(surf, prik_farve, (12, 3), 2)
     pygame.draw.circle(surf, prik_farve, (22, 2), 3)
     pygame.draw.circle(surf, prik_farve, (30, 4), 2)
-    # X-oejne (slaaet ihjel)
     pygame.draw.line(surf, (0, 0, 0), (17, 4), (20, 7), 1)
     pygame.draw.line(surf, (0, 0, 0), (20, 4), (17, 7), 1)
     return surf
@@ -134,11 +147,9 @@ def lav_spoegelse_sprite():
     krop = (245, 245, 250)
     pygame.draw.ellipse(surf, krop, Rect(2, 0, 36, 28))
     pygame.draw.rect(surf, krop, Rect(2, 12, 36, 22))
-    # Boelget bund
     pygame.draw.polygon(surf, krop,
                         [(2, 34), (8, 30), (14, 36), (20, 30),
                          (26, 36), (32, 30), (38, 34), (38, 40), (2, 40)])
-    # Hvide oejne med bla pupil
     pygame.draw.circle(surf, (255, 255, 255), (14, 17), 5)
     pygame.draw.circle(surf, (255, 255, 255), (26, 17), 5)
     pygame.draw.circle(surf, (40, 40, 220), (15, 18), 2)
@@ -148,32 +159,35 @@ def lav_spoegelse_sprite():
 
 def lav_boss_sprite():
     surf = pygame.Surface((100, 80), pygame.SRCALPHA)
-    # Krop (gul mave)
     pygame.draw.ellipse(surf, (255, 220, 100), Rect(15, 35, 70, 40))
-    # Skal (groen)
     pygame.draw.ellipse(surf, (50, 140, 50), Rect(15, 5, 70, 50))
-    # Skal-pigge (hvide)
     for px in [30, 50, 70]:
         pygame.draw.polygon(surf, (255, 255, 255),
                             [(px - 6, 18), (px, 5), (px + 6, 18)])
-    # Hoved
     pygame.draw.circle(surf, (255, 220, 100), (32, 32), 15)
-    # Horn
     pygame.draw.polygon(surf, (200, 80, 80), [(20, 20), (24, 12), (27, 24)])
     pygame.draw.polygon(surf, (200, 80, 80), [(38, 20), (42, 12), (44, 24)])
-    # Onde roede oejne
     pygame.draw.circle(surf, (255, 255, 255), (28, 30), 4)
     pygame.draw.circle(surf, (255, 255, 255), (38, 30), 4)
     pygame.draw.circle(surf, (220, 0, 0), (28, 30), 2)
     pygame.draw.circle(surf, (220, 0, 0), (38, 30), 2)
-    # Tand
     pygame.draw.polygon(surf, (255, 255, 255), [(28, 40), (32, 46), (36, 40)])
+    return surf
+
+
+def lav_moent_sprite():
+    surf = pygame.Surface((20, 20), pygame.SRCALPHA)
+    pygame.draw.circle(surf, (180, 130, 20), (10, 10), 9)
+    pygame.draw.circle(surf, (255, 220, 60), (10, 10), 8)
+    pygame.draw.circle(surf, (180, 130, 20), (10, 10), 5)
+    pygame.draw.circle(surf, (255, 240, 130), (10, 10), 3)
     return surf
 
 
 def byg_sprites():
     global sprite_sonic_hoejre, sprite_sonic_venstre
     global sprite_svampe, sprite_svampe_flat, sprite_spoegelse, sprite_boss
+    global sprite_moent
 
     sprite_sonic_hoejre  = lav_sonic(True)
     sprite_sonic_venstre = lav_sonic(False)
@@ -189,6 +203,7 @@ def byg_sprites():
 
     sprite_spoegelse = lav_spoegelse_sprite()
     sprite_boss = lav_boss_sprite()
+    sprite_moent = lav_moent_sprite()
 
 # ============================================================
 # Bane-data og monster-konstruktoerer
@@ -225,17 +240,25 @@ def lav_spoegelse(x, y, vx, min_x, max_x, bob_speed=0.04):
     }
 
 
+def lav_moent(x, y):
+    return {"rect": Rect(x, y, 20, 20), "samlet": False}
+
+
 def lav_boss(svaerhed_):
     hp = 3 if svaerhed_ == "let" else 5
     fart = 1.5 if svaerhed_ == "let" else 2.5
+    interval = FIREBALL_INTERVAL_LET if svaerhed_ == "let" else FIREBALL_INTERVAL_SVAER
     return {
-        "rect":         Rect(WIDTH // 2 - 50, JORD_Y - 80, 100, 80),
-        "vx":           fart,
-        "min_x":        50,
-        "max_x":        WIDTH - 50,
-        "hp":           hp,
-        "max_hp":       hp,
-        "invuln_timer": 0,
+        "rect":              Rect(WIDTH // 2 - 50, JORD_Y - 80, 100, 80),
+        "vx":                fart,
+        "min_x":             50,
+        "max_x":             WIDTH - 50,
+        "hp":                hp,
+        "max_hp":            hp,
+        "invuln_timer":      0,
+        "fireballs":         [],
+        "fireball_timer":    interval,
+        "fireball_interval": interval,
     }
 
 
@@ -268,6 +291,17 @@ def lav_bane_1(svaerhed_):
             lav_svamp(1950, "brun",  2.2, 1850, 2080),
             lav_svamp(2200, "roed",  2.0, 2100, 2300),
         ]
+    moenter_ = [
+        lav_moent(220,  430),    # paa platform 1
+        lav_moent(395,  330),    # paa platform 2 (hoej)
+        lav_moent(605,  440),    # paa platform 3
+        lav_moent(770,  460),    # i luften over pit 1
+        lav_moent(990,  360),    # paa platform 4
+        lav_moent(1235, 430),    # paa platform 5
+        lav_moent(1565, 480),    # i luften over pit 2
+        lav_moent(1750, 350),    # paa platform 6
+        lav_moent(2090, 430),    # paa platform 7
+    ]
     return {
         "navn":              "BANE 1: SKOVEN",
         "world_width":       2400,
@@ -288,6 +322,7 @@ def lav_bane_1(svaerhed_):
         "skyer":      standardskyer(2400),
         "svampe":     svampe_,
         "spoegelser": [],
+        "moenter":    moenter_,
         "boss":       None,
         "maal_x":     2350,
     }
@@ -316,6 +351,19 @@ def lav_bane_2(svaerhed_):
             lav_svamp(800,  "lilla", 2.0, 750,  1000),
             lav_svamp(1700, "roed",  2.2, 1650, 1900),
         ]
+    moenter_ = [
+        lav_moent(215,  440),
+        lav_moent(405,  360),
+        lav_moent(615,  440),
+        lav_moent(805,  360),
+        lav_moent(1015, 440),
+        lav_moent(1215, 360),
+        lav_moent(1415, 440),
+        lav_moent(1605, 360),
+        lav_moent(1815, 440),
+        lav_moent(2005, 360),
+        lav_moent(2205, 440),
+    ]
     return {
         "navn":              "BANE 2: SPOEGELSES-GROTTEN",
         "world_width":       2400,
@@ -338,12 +386,19 @@ def lav_bane_2(svaerhed_):
         "skyer":      standardskyer(2400),
         "svampe":     svampe_,
         "spoegelser": spoegelser_,
+        "moenter":    moenter_,
         "boss":       None,
         "maal_x":     2350,
     }
 
 
 def lav_bane_3(svaerhed_):
+    moenter_ = [
+        lav_moent(155, 390),    # paa venstre svaevende platform
+        lav_moent(615, 390),    # paa hoejre svaevende platform
+        lav_moent(250, 530),    # paa jorden venstre
+        lav_moent(550, 530),    # paa jorden hoejre
+    ]
     return {
         "navn":              "BANE 3: SKILDPADDE-BOSSEN",
         "world_width":       WIDTH,
@@ -359,6 +414,7 @@ def lav_bane_3(svaerhed_):
         ],
         "svampe":     [],
         "spoegelser": [],
+        "moenter":    moenter_,
         "boss":       lav_boss(svaerhed_),
         "maal_x":     None,
     }
@@ -372,13 +428,15 @@ def lav_bane(nr, svaerhed_):
 
 def set_bane(bane):
     global jord_stykker, flydende_platforme, alle_platforme
-    global skyer, svampe, spoegelser, boss, maal_x, world_width, bane_navn
+    global skyer, svampe, spoegelser, moenter_liste, boss, maal_x
+    global world_width, bane_navn
     jord_stykker       = bane["jord_stykker"]
     flydende_platforme = bane["flydende_platforme"]
     alle_platforme     = jord_stykker + flydende_platforme
     skyer              = bane["skyer"]
     svampe             = bane["svampe"]
     spoegelser         = bane["spoegelser"]
+    moenter_liste      = bane["moenter"]
     boss               = bane["boss"]
     maal_x             = bane["maal_x"]
     world_width        = bane["world_width"]
@@ -399,18 +457,19 @@ def nulstil_spiller():
 
 
 def start_spil(valgt_svaerhed):
-    """Starter et helt nyt spil paa bane 1."""
-    global svaerhed, bane_nr, spil_tilstand, liv
+    """Starter et helt nyt spil paa bane 1 med fersk liv- og moent-tael."""
+    global svaerhed, bane_nr, spil_tilstand, liv, moenter
     svaerhed = valgt_svaerhed
     bane_nr = 1
     set_bane(lav_bane(1, valgt_svaerhed))
     nulstil_spiller()
     liv = 3
+    moenter = 0
     spil_tilstand = "spiller"
 
 
 def start_naeste_bane():
-    """Gaar fra bane 1->2 eller 2->3. Bevarer liv og svaerhed."""
+    """Bane 1->2 eller 2->3. Bevarer liv, moenter og svaerhed."""
     global bane_nr, spil_tilstand
     bane_nr += 1
     if bane_nr > 3:
@@ -442,6 +501,15 @@ def mist_liv():
         respawn_spiller()
 
 
+def tilfoej_moenter(antal):
+    """Tilfoej moenter til toelleren. For hver MOENTER_PER_LIV faar man et liv."""
+    global moenter, liv
+    for _ in range(antal):
+        moenter = moenter + 1
+        if moenter % MOENTER_PER_LIV == 0:
+            liv = liv + 1
+
+
 def update():
     global spil_tilstand
     global spiller_vy, paa_jorden, spiller_facing
@@ -470,7 +538,7 @@ def update():
             start_naeste_bane()
         return
 
-    # --- Spiller (spil_tilstand == "spiller") ---
+    # --- Spiller ---
 
     # 1. Input
     vx = 0
@@ -542,7 +610,7 @@ def update():
             s["rect"].right = s["max_x"]
             s["vx"] = -s["vx"]
 
-    # 5b. Flyt spoegelser (vandret + bobbing op-ned)
+    # 5b. Flyt spoegelser
     for g in spoegelser:
         if g["squash_timer"] > 0:
             g["squash_timer"] -= 1
@@ -568,10 +636,11 @@ def update():
             g["rect"].right = g["max_x"]
             g["vx"] = -g["vx"]
 
-    # 5c. Flyt boss
+    # 5c. Flyt boss + spawn fireballs
     if boss is not None:
         if boss["invuln_timer"] > 0:
             boss["invuln_timer"] -= 1
+
         if boss["hp"] > 0:
             boss["rect"].x = boss["rect"].x + boss["vx"]
             if boss["rect"].left < boss["min_x"]:
@@ -580,6 +649,30 @@ def update():
             if boss["rect"].right > boss["max_x"]:
                 boss["rect"].right = boss["max_x"]
                 boss["vx"] = -boss["vx"]
+
+            # Spawn fireball
+            boss["fireball_timer"] -= 1
+            if boss["fireball_timer"] <= 0:
+                bx = boss["rect"].centerx
+                by = boss["rect"].centery + 5
+                if spiller.centerx > bx:
+                    ball_vx = FIREBALL_FART
+                else:
+                    ball_vx = -FIREBALL_FART
+                boss["fireballs"].append({
+                    "rect": Rect(bx - FIREBALL_STR // 2, by - FIREBALL_STR // 2,
+                                 FIREBALL_STR, FIREBALL_STR),
+                    "vx":   ball_vx,
+                })
+                boss["fireball_timer"] = boss["fireball_interval"]
+
+        # Flyt eksisterende fireballs (selv hvis bossen er doed)
+        nye_fb = []
+        for f in boss["fireballs"]:
+            f["rect"].x = f["rect"].x + f["vx"]
+            if -50 < f["rect"].x < world_width + 50:
+                nye_fb.append(f)
+        boss["fireballs"] = nye_fb
 
     # 6. Tjek monster-kollisioner
     if usaarlig_timer > 0:
@@ -599,6 +692,7 @@ def update():
             s["squash_timer"] = SQUASH_FRAMES
             spiller_vy = SPRING_KRAFT * STOMP_BOUNCE
             sounds.hop.play()
+            tilfoej_moenter(1)
             break
         elif usaarlig_timer == 0:
             mist_liv()
@@ -616,6 +710,7 @@ def update():
             g["squash_timer"] = SQUASH_FRAMES
             spiller_vy = SPRING_KRAFT * STOMP_BOUNCE
             sounds.hop.play()
+            tilfoej_moenter(1)
             break
         elif usaarlig_timer == 0:
             mist_liv()
@@ -631,6 +726,7 @@ def update():
                 boss["invuln_timer"] = BOSS_INVULN_FRAMES
                 sounds.hop.play()
                 if boss["hp"] <= 0:
+                    tilfoej_moenter(BOSS_BONUS_MOENTER)
                     spil_tilstand = "vandt_alt"
                     sounds.vinder.play()
                     return
@@ -638,7 +734,23 @@ def update():
             mist_liv()
             return
 
-    # 7. Tjek maal (kun for baner med maal_x)
+    # Boss-fireballs
+    if boss is not None and usaarlig_timer == 0:
+        for f in boss["fireballs"]:
+            if spiller.colliderect(f["rect"]):
+                mist_liv()
+                return
+
+    # 6.5 Saml moenter
+    for m in moenter_liste:
+        if m["samlet"]:
+            continue
+        if spiller.colliderect(m["rect"]):
+            m["samlet"] = True
+            sounds.coin.play()
+            tilfoej_moenter(1)
+
+    # 7. Tjek maal
     if maal_x is not None and spiller.x >= maal_x:
         if bane_nr < 3:
             spil_tilstand = "bane_skift"
@@ -647,7 +759,7 @@ def update():
             spil_tilstand = "vandt_alt"
             sounds.vinder.play()
 
-    # 8. Kameraet foelger spilleren (hvis verden er bredere end skaermen)
+    # 8. Kameraet foelger spilleren
     if world_width > WIDTH:
         nyt_kamera = spiller.centerx - WIDTH // 3
         if nyt_kamera < 0:
@@ -660,7 +772,6 @@ def update():
 
 
 def pixelater():
-    """Skalerer skaermen ned med PIXEL_SIZE og op igen for C64-pixelering."""
     lille_w = WIDTH // PIXEL_SIZE
     lille_h = HEIGHT // PIXEL_SIZE
     lille = pygame.transform.scale(screen.surface, (lille_w, lille_h))
@@ -688,21 +799,24 @@ def tegn_menu():
     screen.blit(big_ghost, (370, 420))
     big_boss = pygame.transform.scale(sprite_boss, (130, 100))
     screen.blit(big_boss, (530, 395))
+    big_moent = pygame.transform.scale(sprite_moent, (40, 40))
+    screen.blit(big_moent, (700, 425))
 
     screen.draw.text("SONIC DEMO",
                      center=(WIDTH // 2, 70), fontsize=80, color="white")
-    screen.draw.text("3 baner. Hop paa monstre. Slaa bossen.",
+    screen.draw.text("3 baner. Saml moenter. Slaa bossen.",
                      center=(WIDTH // 2, 130), fontsize=28, color="white")
+    screen.draw.text("Hver 10 moenter = 1 ekstra liv",
+                     center=(WIDTH // 2, 165), fontsize=22, color=(255, 220, 60))
     screen.draw.text("Vaelg svaerhedsgrad",
-                     center=(WIDTH // 2, 200), fontsize=36, color="white")
+                     center=(WIDTH // 2, 215), fontsize=36, color="white")
     screen.draw.text("Tryk  L  -  LET",
-                     center=(WIDTH // 2, 260), fontsize=50, color=(120, 230, 120))
+                     center=(WIDTH // 2, 270), fontsize=50, color=(120, 230, 120))
     screen.draw.text("Tryk  S  -  SVAER",
-                     center=(WIDTH // 2, 320), fontsize=50, color=(255, 180, 80))
+                     center=(WIDTH // 2, 325), fontsize=50, color=(255, 180, 80))
 
 
 def tegn_verden():
-    """Tegner alt der hoerer til selve banen - bruges naar man spiller, ved bane-skift og slut-skaerm."""
     screen.fill((110, 180, 240))
 
     # Skyer (parallax)
@@ -744,6 +858,14 @@ def tegn_verden():
             screen.draw.filled_rect(Rect(mx, JORD_Y - 80, 4, 80), (140, 100, 60))
             screen.draw.filled_rect(Rect(mx + 4, JORD_Y - 80, 26, 18), "yellow")
 
+    # Moenter (kun de der ikke er samlet endnu)
+    for m in moenter_liste:
+        if m["samlet"]:
+            continue
+        mx = m["rect"].x - camera_x
+        if -30 < mx < WIDTH + 30:
+            screen.blit(sprite_moent, (mx, m["rect"].y))
+
     # Svampe (med squash-animation)
     for s in svampe:
         sx = s["rect"].x - camera_x
@@ -754,7 +876,7 @@ def tegn_verden():
         elif s["levende"]:
             screen.blit(sprite_svampe[s["farve"]], (sx, s["rect"].y))
 
-    # Spoegelser (fader ved squash)
+    # Spoegelser
     for g in spoegelser:
         sx = g["rect"].x - camera_x
         if sx < -100 or sx > WIDTH + 100:
@@ -771,7 +893,17 @@ def tegn_verden():
         if boss["invuln_timer"] == 0 or (boss["invuln_timer"] // 5) % 2 == 0:
             screen.blit(sprite_boss, (bx, boss["rect"].y))
 
-    # Spilleren - blink hvis usaarlig
+    # Boss-fireballs
+    if boss is not None:
+        for f in boss["fireballs"]:
+            fx = f["rect"].centerx - camera_x
+            fy = f["rect"].centery
+            if -20 < fx < WIDTH + 20:
+                screen.draw.filled_circle((fx, fy), 10, (220, 50, 0))
+                screen.draw.filled_circle((fx, fy), 7, (255, 140, 0))
+                screen.draw.filled_circle((fx, fy), 4, (255, 230, 80))
+
+    # Spilleren
     blink = (usaarlig_timer // 5) % 2 == 0
     if usaarlig_timer == 0 or blink:
         if spiller_facing == 1:
@@ -782,12 +914,14 @@ def tegn_verden():
 
     # HUD
     screen.draw.text("Liv: " + str(liv), topleft=(10, 10), fontsize=30, color="white")
+    screen.draw.text("Moenter: " + str(moenter), topleft=(10, 42),
+                     fontsize=24, color=(255, 220, 60))
     if svaerhed == "let":
         sv_tekst = "Svaerhed: LET"
     else:
         sv_tekst = "Svaerhed: SVAER"
-    screen.draw.text(sv_tekst, topleft=(10, 42), fontsize=22, color="white")
-    screen.draw.text(bane_navn, topleft=(10, 67), fontsize=22, color="white")
+    screen.draw.text(sv_tekst, topleft=(10, 70), fontsize=22, color="white")
+    screen.draw.text(bane_navn, topleft=(10, 95), fontsize=22, color="white")
 
     # Boss HP-bar
     if boss is not None and boss["hp"] > 0:
@@ -826,24 +960,27 @@ def draw():
         screen.draw.text("GAME OVER",
                          center=(WIDTH // 2, HEIGHT // 2 - 30),
                          fontsize=80, color="white")
-        screen.draw.text("Tryk MELLEMRUM for at proeve igen",
+        screen.draw.text("Tryk MELLEMRUM for at starte forfra (bane 1)",
                          center=(WIDTH // 2, HEIGHT // 2 + 30),
-                         fontsize=28, color="white")
+                         fontsize=26, color="white")
         screen.draw.text("Tryk M for menu",
                          center=(WIDTH // 2, HEIGHT // 2 + 70),
                          fontsize=24, color="white")
     elif spil_tilstand == "vandt_alt":
         screen.draw.text("DU HAR VUNDET!",
-                         center=(WIDTH // 2, HEIGHT // 2 - 70),
+                         center=(WIDTH // 2, HEIGHT // 2 - 90),
                          fontsize=80, color="yellow")
         screen.draw.text("Du besejrede skildpadden!",
-                         center=(WIDTH // 2, HEIGHT // 2 - 10),
+                         center=(WIDTH // 2, HEIGHT // 2 - 30),
                          fontsize=36, color="white")
+        screen.draw.text("Du samlede " + str(moenter) + " moenter",
+                         center=(WIDTH // 2, HEIGHT // 2 + 10),
+                         fontsize=28, color=(255, 220, 60))
         screen.draw.text("Tryk MELLEMRUM for at spille igen",
-                         center=(WIDTH // 2, HEIGHT // 2 + 50),
+                         center=(WIDTH // 2, HEIGHT // 2 + 60),
                          fontsize=28, color="white")
         screen.draw.text("Tryk M for menu",
-                         center=(WIDTH // 2, HEIGHT // 2 + 90),
+                         center=(WIDTH // 2, HEIGHT // 2 + 100),
                          fontsize=24, color="white")
 
     pixelater()

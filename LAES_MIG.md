@@ -26,12 +26,19 @@ Spørger om dit navn og hilser på dig. Det første program du nogensinde laver!
 Computeren tænker på et tal mellem 1 og 100, og du skal gætte det. Den fortæller dig om dit gæt er for højt eller for lavt.
 
 ### `spil.py` — dit første rigtige spil!
-Et platformspil i Sonic-stil med **3 baner**, C64-pixeleret grafik, flere monstertyper, lydeffekter, parallax-skyer i baggrunden, valg mellem to sværhedsgrader, robotstemme ved game over og fejringsmelodi når man vinder.
+Et platformspil i Sonic-stil med **3 baner**, C64-pixeleret grafik, flere monstertyper, mønter at samle, ekstra liv, lydeffekter, parallax-skyer i baggrunden, valg mellem to sværhedsgrader, robotstemme ved game over og fejringsmelodi når man vinder.
 
 **Banerne:**
-- **Bane 1: Skoven** — kun svampe, scroller mod højre
-- **Bane 2: Spøgelses-grotten** — svævende spøgelser i Pacman-stil, plus enkelte svampe
-- **Bane 3: Skildpadde-bossen** — boss-arena uden scrolling, hop oven på den onde skildpadde for at give skade (3 hits på LET, 5 hits på SVÆR)
+- **Bane 1: Skoven** — kun svampe, scroller mod højre, 9 mønter
+- **Bane 2: Spøgelses-grotten** — svævende spøgelser i Pacman-stil, enkelte svampe, 11 mønter
+- **Bane 3: Skildpadde-bossen** — boss-arena uden scrolling, hop oven på den onde skildpadde for at give skade (3 hits på LET, 5 hits på SVÆR). **Pas på hans ildkugler!** Boss giver 10 mønter når den er besejret.
+
+**Mønt-system:**
+- Saml mønter rundt om på banerne (gule cirkler)
+- Du får 1 mønt for hver monster du dræber (hop på det)
+- Bossen giver 10 mønter når den er besejret
+- For hver 10 mønter får du **1 ekstra liv**
+- Mister du alle dine liv, starter du forfra på bane 1 (mønter nulstilles)
 
 **Kontroller:**
 
@@ -55,6 +62,7 @@ spil.py            <- selve spillet
 sounds/
   hop.wav          <- lyd ved spring og stomp
   auch.wav         <- lyd når man bliver ramt
+  coin.wav         <- lyd når man samler en mønt
   gameover.wav     <- robotstemme der siger "Game over"
   vinder.wav       <- fejringsmelodi når man besejrer bossen
 ```
@@ -93,6 +101,10 @@ py spil.py
 - Gør bossen sværere — øg HP i `lav_boss` eller hæv hans `vx` (fart)
 - Tilføj en ny lyd — generer en ny `.wav` med `wave`-modulet og brug `sounds.dinlyd.play()`
 - Lad spøgelser bevæge sig anderledes — `bob_speed` styrer hvor hurtigt de svinger op/ned
+- Tilføj flere mønter — udvid `moenter_`-listen i `lav_bane_1/2/3` med flere `lav_moent(x, y)` kald
+- Skift hvor mange mønter der skal til for ekstra liv — sæt `MOENTER_PER_LIV` til 5 (let) eller 20 (svært)
+- Få bossen til at skyde hurtigere/langsommere — sæt `FIREBALL_INTERVAL_LET` og `FIREBALL_INTERVAL_SVAER`
+- Få fireballs til at flyve hurtigere — sæt `FIREBALL_FART`
 - Lav et **point-tæller** der tæller opad mens man spiller
 - Tilføj en mønt (gul cirkel) man kan samle op for at få ekstra liv
 - Gør banen længere — øg `WORLD_WIDTH` og tilføj flere platforme/svampe

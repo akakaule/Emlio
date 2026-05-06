@@ -50,6 +50,10 @@ FIREBALL_INTERVAL_LET = 110    # frames mellem fireballs paa LET
 FIREBALL_INTERVAL_SVAER = 65   # frames mellem fireballs paa SVAER
 FIREBALL_STR = 16              # stoerrelse paa fireball-kollisionsboks
 
+# Spillerens egne fireballs (TAB-knappen)
+SPILLER_FB_FART = 9.0
+SPILLER_FB_STR  = 14
+
 START_X = 50
 START_Y = 470
 
@@ -69,6 +73,8 @@ liv = 3
 moenter = 0
 usaarlig_timer = 0
 camera_x = 0
+udoedelig = False              # snydekode: TAB-toggle med L-knappen
+spiller_fireballs = []         # liste af {rect, vx} fra spillerens egne skud
 
 jord_stykker = []
 flydende_platforme = []
@@ -490,13 +496,15 @@ def nulstil_spiller():
 
 def start_spil(valgt_svaerhed):
     """Starter et helt nyt spil paa bane 1 med fersk liv- og moent-tael."""
-    global svaerhed, bane_nr, spil_tilstand, liv, moenter
+    global svaerhed, bane_nr, spil_tilstand, liv, moenter, udoedelig
     svaerhed = valgt_svaerhed
     bane_nr = 1
     set_bane(lav_bane(1, valgt_svaerhed))
     nulstil_spiller()
     liv = 3
     moenter = 0
+    udoedelig = False
+    spiller_fireballs.clear()
     spil_tilstand = "spiller"
 
 
@@ -510,6 +518,7 @@ def start_naeste_bane():
         return
     set_bane(lav_bane(bane_nr, svaerhed))
     nulstil_spiller()
+    spiller_fireballs.clear()
     spil_tilstand = "spiller"
 
 
@@ -524,6 +533,11 @@ def respawn_spiller():
 
 def mist_liv():
     global liv, spil_tilstand
+    if udoedelig:
+        # Snydekode aktiv: ingen skade, men tjek om vi faldt ud af verden
+        if spiller.top > HEIGHT:
+            respawn_spiller()
+        return
     sounds.auch.play()
     liv = liv - 1
     if liv <= 0:
@@ -531,6 +545,32 @@ def mist_liv():
         sounds.gameover.play()
     else:
         respawn_spiller()
+
+
+def skyd_fireball():
+    """Affyrer en fireball i den retning spilleren peger."""
+    if spiller_facing == 1:
+        bx = spiller.right + 4
+    else:
+        bx = spiller.left - 4
+    by = spiller.centery
+    spiller_fireballs.append({
+        "rect": Rect(bx - SPILLER_FB_STR // 2, by - SPILLER_FB_STR // 2,
+                     SPILLER_FB_STR, SPILLER_FB_STR),
+        "vx":   SPILLER_FB_FART * spiller_facing,
+    })
+    sounds.hop.play()
+
+
+def on_key_down(key):
+    """TAB = skyd, L = skift mellem doedelig/usaarlig (kun mens man spiller)."""
+    global udoedelig
+    if spil_tilstand != "spiller":
+        return
+    if key == keys.L:
+        udoedelig = not udoedelig
+    elif key == keys.TAB:
+        skyd_fireball()
 
 
 def tilfoej_moenter(antal):
@@ -766,6 +806,57 @@ def update():
                 nye_fb.append(f)
         boss["fireballs"] = nye_fb
 
+    # 5d. Flyt spillerens fireballs (TAB)
+    nye_pfb = []
+    for f in spiller_fireballs:
+        f["rect"].x = f["rect"].x + f["vx"]
+        if not (-50 < f["rect"].x < world_width + 50):
+            continue
+
+        truffet = False
+
+        # Ram svampe
+        for s in svampe:
+            if not s["levende"] or s["squash_timer"] > 0:
+                continue
+            if f["rect"].colliderect(s["rect"]):
+                s["levende"] = False
+                s["squash_timer"] = SQUASH_FRAMES
+                tilfoej_moenter(1)
+                sounds.hop.play()
+                truffet = True
+                break
+
+        # Ram spoegelser
+        if not truffet:
+            for g in spoegelser:
+                if not g["levende"] or g["squash_timer"] > 0:
+                    continue
+                if f["rect"].colliderect(g["rect"]):
+                    g["levende"] = False
+                    g["squash_timer"] = SQUASH_FRAMES
+                    tilfoej_moenter(1)
+                    sounds.hop.play()
+                    truffet = True
+                    break
+
+        # Ram bossen
+        if not truffet and boss is not None and boss["hp"] > 0:
+            if f["rect"].colliderect(boss["rect"]):
+                if boss["invuln_timer"] == 0:
+                    boss["hp"] -= 1
+                    boss["invuln_timer"] = BOSS_INVULN_FRAMES
+                    sounds.hop.play()
+                    if boss["hp"] <= 0:
+                        tilfoej_moenter(BOSS_BONUS_MOENTER)
+                        spil_tilstand = "vandt_alt"
+                        sounds.vinder.play()
+                truffet = True
+
+        if not truffet:
+            nye_pfb.append(f)
+    spiller_fireballs[:] = nye_pfb
+
     # 6. Tjek monster-kollisioner
     if usaarlig_timer > 0:
         usaarlig_timer -= 1
@@ -995,6 +1086,22 @@ def tegn_verden():
                 screen.draw.filled_circle((fx, fy), 7, (255, 140, 0))
                 screen.draw.filled_circle((fx, fy), 4, (255, 230, 80))
 
+    # Spillerens fireballs (blaa)
+    for f in spiller_fireballs:
+        fx = f["rect"].centerx - camera_x
+        fy = f["rect"].centery
+        if -20 < fx < WIDTH + 20:
+            screen.draw.filled_circle((fx, fy), 9, (20,  60, 200))
+            screen.draw.filled_circle((fx, fy), 6, (80, 180, 255))
+            screen.draw.filled_circle((fx, fy), 3, (220, 240, 255))
+
+    # Glorie naar man er usaarlig
+    if udoedelig:
+        cx = spiller.centerx - camera_x
+        cy = spiller.centery
+        screen.draw.circle((cx, cy), 32, (255, 230, 80))
+        screen.draw.circle((cx, cy), 30, (255, 200, 30))
+
     # Spilleren
     blink = (usaarlig_timer // 5) % 2 == 0
     if usaarlig_timer == 0 or blink:
@@ -1029,6 +1136,19 @@ def tegn_hud():
         sv_tekst = "Svaerhed: SVAER"
     screen.draw.text(sv_tekst, topleft=(10, 72), fontsize=22, color="white")
     screen.draw.text(bane_navn, topleft=(10, 96), fontsize=22, color="white")
+
+    # Tilstands-indikator (oeverst hoejre)
+    if udoedelig:
+        tilstand_tekst = "USAARLIG"
+        tilstand_farve = (100, 255, 100)
+    else:
+        tilstand_tekst = "DOEDELIG"
+        tilstand_farve = (255, 255, 255)
+    screen.draw.text(tilstand_tekst, topright=(WIDTH - 10, 10),
+                     fontsize=28, color=tilstand_farve)
+    screen.draw.text("L: skift  TAB: skyd",
+                     topright=(WIDTH - 10, 42),
+                     fontsize=18, color=(210, 210, 210))
 
     # Boss HP-bar
     if boss is not None and boss["hp"] > 0:

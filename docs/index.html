@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sonic-demo — det lille platformspil</title>
-<meta name="description" content="Et hjemmelavet platformspil i Sonic-stil med 3 baner, svampe, spøgelser og en skildpadde-boss. Lavet i Python med Pygame Zero. Helt gratis.">
+<meta name="description" content="Et hjemmelavet platformspil i Sonic-stil med 3 baner, svampe, hoppende monstre, spøgelser, ildkugler, mønter og en skildpadde-boss. Lavet i Python med Pygame Zero. Helt gratis.">
 <style>
   :root{
     --himmel:#6eb4f0;
@@ -309,6 +309,11 @@
     box-shadow:0 3px 0 #000;
   }
   .key p{margin:0;color:#4d5a6f}
+  .kbd-inline{
+    display:inline-block;padding:2px 8px;border-radius:5px;
+    background:#0f1a2b;color:#fff;font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-weight:700;font-size:.85em;
+  }
 
   /* Hent */
   .hent{
@@ -386,10 +391,10 @@
     <div>
       <span class="gratis-badge">100% gratis · Open source</span>
       <h1>Løb. Hop. <span class="accent">Knus monstrene.</span></h1>
-      <p class="lede">Et hyggeligt platformspil i Sonic-stil med <strong>3 baner</strong>, fræk svampe-fauna, hjemsøgende spøgelser og en arrig skildpadde-boss. Lavet i Python — perfekt til at lege med og bygge videre på.</p>
+      <p class="lede">Et hyggeligt platformspil i Sonic-stil med <strong>3 baner</strong>, hoppende svampe, dykkende spøgelser, mønter, ildkugler og en arrig skildpadde-boss der skyder igen. Skyd selv med <span class="kbd-inline">TAB</span> og snyd med <span class="kbd-inline">L</span>. Lavet i Python — perfekt til at lege med og bygge videre på.</p>
       <div class="cta-row">
-        <a href="#hent" class="btn btn-primary">Hent gratis</a>
-        <a href="#features" class="btn btn-ghost">Se funktioner</a>
+        <a href="./play/" class="btn btn-primary">▶ Spil i browseren</a>
+        <a href="#hent" class="btn btn-ghost">Hent kildekoden</a>
       </div>
     </div>
 
@@ -454,26 +459,41 @@
       </div>
       <div class="card">
         <div class="ikon b2">👟</div>
-        <h3>Stomp-mekanik</h3>
-        <p>Hop oven på fjenderne for at slå dem ihjel — du får et lille spring tilbage som tak. Ramme dem fra siden? Så mister du et liv.</p>
+        <h3>Stomp eller skyd</h3>
+        <p>Hop oven på fjenderne — eller tryk <span class="kbd-inline">TAB</span> og send blå ildkugler afsted. Begge dele giver mønter.</p>
       </div>
       <div class="card">
         <div class="ikon b3">⚔️</div>
-        <h3>Bosskamp</h3>
-        <p>Skildpadden har 3 (let) eller 5 (svær) HP. Hop på skallen — men pas på, den bliver kortvarigt usårlig efter hvert hit.</p>
+        <h3>Bosskamp med ildkugler</h3>
+        <p>Skildpadden har 3 (let) eller 5 (svær) HP og spytter ildkugler tilbage. Hop på skallen eller bruge dine egne ildkugler.</p>
       </div>
       <div class="card">
-        <div class="ikon b4">🎚️</div>
+        <div class="ikon b4">🪙</div>
+        <h3>Mønter & hjerter</h3>
+        <p>Saml mønter rundt om i banerne. For hver <strong>5 mønter</strong> får du et ekstra liv — vist som hjerter i hjørnet med en lille fanfare.</p>
+      </div>
+      <div class="card">
+        <div class="ikon b5">🛡️</div>
+        <h3>Snydekode: usårlig</h3>
+        <p>Tryk <span class="kbd-inline">L</span> midt i spillet for at blive udødelig — gul glorie og grøn “USAARLIG” i HUD'en. Tryk igen for at slå det fra.</p>
+      </div>
+      <div class="card">
+        <div class="ikon b6">🎚️</div>
         <h3>To sværhedsgrader</h3>
-        <p>LET for nybegyndere eller den lille i familien — SVÆR med flere monstre, hurtigere fart og en sejere boss.</p>
+        <p>LET for nybegyndere eller den lille i familien — SVÆR med flere monstre, hurtigere boss og endnu mere kaos.</p>
       </div>
       <div class="card">
-        <div class="ikon b5">🕹️</div>
-        <h3>C64-pixelering</h3>
-        <p>Hele billedet skaleres ned og op igen for et klassisk pikselret retro-look. Få linjer kode — stor effekt.</p>
+        <div class="ikon b1">👻</div>
+        <h3>Hoppende svampe og dykkende spøgelser</h3>
+        <p>I bane 2 hopper svampene op på platformene efter dig, og spøgelser dykker i store buer fra højt oppe ned mod gulvet — uden at gå gennem platformene.</p>
       </div>
       <div class="card">
-        <div class="ikon b6">🛠️</div>
+        <div class="ikon b2">🕹️</div>
+        <h3>Pixelering med skarp HUD</h3>
+        <p>Verden skaleres ned og op igen for et klassisk retro-look — men HUD'en med hjerter, mønter og tilstand tegnes <em>ovenpå</em> i moderne, skarp skrift.</p>
+      </div>
+      <div class="card">
+        <div class="ikon b3">🛠️</div>
         <h3>Hackbar Python-kode</h3>
         <p>Læselig, dansk-kommenteret og veldokumenteret. Tilføj nye baner, monster-typer eller egne sprites på en eftermiddag.</p>
       </div>
@@ -503,10 +523,11 @@
         <div class="top">2</div>
         <div class="body">
           <h3>Spøgelses-grotten</h3>
-          <p>Mørkere stemning. Spøgelser svæver gennem luften med sinusagtig bob — og enkelte svampe lurer stadig på jorden.</p>
+          <p>Mørkere og sværere. Spøgelser dykker i store buer fra højt oppe ned mod jorden og kan ikke krydse platforme. Svampene har lært at hoppe op på platformene efter dig.</p>
           <div class="modstandere">
-            <span class="pill">👻 Spøgelser</span>
-            <span class="pill">🍄 Svampe</span>
+            <span class="pill">👻 Dykkende spøgelser</span>
+            <span class="pill">🍄 Hoppende svampe</span>
+            <span class="pill">🪙 Mønter</span>
           </div>
         </div>
       </div>
@@ -514,9 +535,10 @@
         <div class="top">3</div>
         <div class="body">
           <h3>Skildpadde-bossen</h3>
-          <p>Ingen scrolling — én skærm, ét monster. Hop på skallen indtil HP'en er væk og du har vundet.</p>
+          <p>Ingen scrolling — én skærm, ét monster. Bossen kaster ildkugler efter dig. Hop på skallen eller skyd igen med <span class="kbd-inline">TAB</span> indtil HP'en er væk.</p>
           <div class="modstandere">
             <span class="pill">🐢 Skildpadde-boss</span>
+            <span class="pill">🔥 Ildkugler</span>
           </div>
         </div>
       </div>
@@ -586,6 +608,8 @@
       <div class="key"><span class="kbd">L / S</span><p>I menuen: vælg LET eller SVÆR</p></div>
       <div class="key"><span class="kbd">← →</span><p>Løb til højre og venstre</p></div>
       <div class="key"><span class="kbd">↑ / Mellemrum</span><p>Hop op på platforme og oven på fjenderne</p></div>
+      <div class="key"><span class="kbd">TAB</span><p>Skyd blå ildkugler i den retning du peger</p></div>
+      <div class="key"><span class="kbd">L</span><p>Snydekode: skift mellem dødelig og usårlig</p></div>
       <div class="key"><span class="kbd">Mellemrum</span><p>Spil igen efter Game Over</p></div>
       <div class="key"><span class="kbd">M</span><p>Tilbage til menuen fra slut-skærmen</p></div>
       <div class="key"><span class="kbd">Esc</span><p>Luk spillet (standard Pygame Zero)</p></div>
@@ -597,9 +621,10 @@
   <div class="wrap">
     <div class="hent">
       <div>
-        <h2>Hent spillet — det er gratis</h2>
-        <p>Hele kildekoden, lydene og en LÆS_MIG-guide. Ingen tilmelding, ingen reklamer, ingen abonnement. Bare hent og spil.</p>
-        <a href="#" class="btn btn-primary">Hent ZIP</a>
+        <h2>Spil eller hent — det er gratis</h2>
+        <p>Spil direkte i browseren uden at installere noget. Eller hent hele kildekoden, lydene og en LÆS_MIG-guide fra GitHub. Ingen tilmelding, ingen reklamer, ingen abonnement.</p>
+        <a href="./play/" class="btn btn-primary">▶ Spil online</a>
+        <a href="https://github.com/akakaule/Emlio" class="btn btn-primary" style="margin-left:10px;background:#0f1a2b;color:#fff">Hent fra GitHub</a>
       </div>
       <div class="hent-boks">
         <div class="badge">FRIT TILGÆNGELIGT</div>
@@ -658,7 +683,17 @@
 
     <details>
       <summary>Hvordan slår jeg monstrene ihjel?</summary>
-      <p>Hop oven på dem. Lander du <em>oven på</em> en svamp, et spøgelse eller skildpadde-bossen, så slår du dem ihjel og får et lille hop tilbage. Rør du dem fra siden, mister du et liv.</p>
+      <p>To måder. Hop oven på dem — lander du <em>oven på</em> en svamp, et spøgelse eller skildpadde-bossen, slår du dem ihjel og får et lille hop tilbage. Eller tryk <span class="kbd-inline">TAB</span> for at skyde blå ildkugler i den retning du peger. Rører du fjenderne fra siden, mister du et liv.</p>
+    </details>
+
+    <details>
+      <summary>Hvad gør L-knappen midt i spillet?</summary>
+      <p>Det er en snydekode. Tryk <span class="kbd-inline">L</span> én gang for at blive udødelig (du bliver omgivet af en gul glorie og HUD'en viser "USAARLIG"). Tryk igen for at slå snydekoden fra. Du nulstilles til dødelig hver gang du starter et nyt spil.</p>
+    </details>
+
+    <details>
+      <summary>Hvordan får jeg flere liv?</summary>
+      <p>For hver 5 mønter du samler får du ét ekstra liv. Liv vises som røde hjerter øverst til venstre i HUD'en, og du hører en lille fanfare hver gang du tjener et nyt et.</p>
     </details>
 
     <details>
@@ -681,7 +716,7 @@
 <footer>
   <div class="wrap">
     <div>© 2026 Sonic-demo · lavet med ❤ og <a href="https://pygame-zero.readthedocs.io">Pygame Zero</a></div>
-    <div><a href="#">Kontakt</a> · <a href="#">Kildekode</a></div>
+    <div><a href="https://github.com/akakaule/Emlio">Kildekode på GitHub</a> · <a href="./play/">Spil online</a></div>
   </div>
 </footer>
 

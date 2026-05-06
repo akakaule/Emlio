@@ -8,3 +8,6 @@ __pycache__/
 
 # Crash dumps
 *.stackdump
+
+# pygbag build artefakter (regenereres med: pygbag --build web)
+web/build/

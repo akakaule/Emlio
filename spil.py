@@ -8,7 +8,7 @@
 #   - Saml moenter rundt om paa banerne
 #   - 1 moent per monster du draeber
 #   - Boss giver 10 moenter
-#   - For hver 10 moenter faar du 1 ekstra liv
+#   - For hver 5 moenter faar du 1 ekstra liv (vist som hjerter)
 #
 # Kontroller:
 #   I menuen:               L = LET, S = SVAER
@@ -42,7 +42,7 @@ BOSS_INVULN_FRAMES = 60
 BANE_SKIFT_FRAMES = 120
 PIXEL_SIZE = 4
 
-MOENTER_PER_LIV = 10           # for hver 10 moenter faar man et ekstra liv
+MOENTER_PER_LIV = 5            # for hver 5 moenter faar man et ekstra liv
 BOSS_BONUS_MOENTER = 10        # bossen giver saa mange moenter naar man besejrer ham
 
 FIREBALL_FART = 5.0
@@ -89,6 +89,7 @@ sprite_svampe_flat = {}
 sprite_spoegelse = None
 sprite_boss = None
 sprite_moent = None
+sprite_hjerte = None
 
 # ============================================================
 # Sprite-tegning
@@ -184,10 +185,28 @@ def lav_moent_sprite():
     return surf
 
 
+def lav_hjerte_sprite():
+    surf = pygame.Surface((26, 24), pygame.SRCALPHA)
+    roed       = (220, 30, 50)
+    moerk_roed = (150, 15, 30)
+    lys        = (255, 170, 190)
+    # Moerk omrids
+    pygame.draw.circle(surf, moerk_roed, (8, 8), 8)
+    pygame.draw.circle(surf, moerk_roed, (18, 8), 8)
+    pygame.draw.polygon(surf, moerk_roed, [(0, 9), (26, 9), (13, 23)])
+    # Selve hjertet
+    pygame.draw.circle(surf, roed, (8, 8), 6)
+    pygame.draw.circle(surf, roed, (18, 8), 6)
+    pygame.draw.polygon(surf, roed, [(2, 9), (24, 9), (13, 21)])
+    # Glanslys
+    pygame.draw.circle(surf, lys, (6, 6), 2)
+    return surf
+
+
 def byg_sprites():
     global sprite_sonic_hoejre, sprite_sonic_venstre
     global sprite_svampe, sprite_svampe_flat, sprite_spoegelse, sprite_boss
-    global sprite_moent
+    global sprite_moent, sprite_hjerte
 
     sprite_sonic_hoejre  = lav_sonic(True)
     sprite_sonic_venstre = lav_sonic(False)
@@ -204,26 +223,31 @@ def byg_sprites():
     sprite_spoegelse = lav_spoegelse_sprite()
     sprite_boss = lav_boss_sprite()
     sprite_moent = lav_moent_sprite()
+    sprite_hjerte = lav_hjerte_sprite()
 
 # ============================================================
 # Bane-data og monster-konstruktoerer
 # ============================================================
-def lav_svamp(x_start, farve, vx, min_x, max_x):
+def lav_svamp(x_start, farve, vx, min_x, max_x, kan_hoppe=False):
     return {
         "rect":          Rect(x_start, JORD_Y - 35, 40, 35),
         "start_x":       x_start,
         "vx":            vx,
         "vx_init":       vx,
+        "vy":            0.0,
+        "paa_jorden":    True,
         "min_x":         min_x,
         "max_x":         max_x,
         "farve":         farve,
         "levende":       True,
         "respawn_timer": 0,
         "squash_timer":  0,
+        "kan_hoppe":     kan_hoppe,
+        "hop_cooldown":  0,
     }
 
 
-def lav_spoegelse(x, y, vx, min_x, max_x, bob_speed=0.04):
+def lav_spoegelse(x, y, vx, min_x, max_x, bob_speed=0.04, bob_amplitude=25):
     return {
         "rect":          Rect(x, y, 40, 40),
         "start_x":       x,
@@ -234,6 +258,7 @@ def lav_spoegelse(x, y, vx, min_x, max_x, bob_speed=0.04):
         "max_x":         max_x,
         "bob_phase":     0.0,
         "bob_speed":     bob_speed,
+        "bob_amplitude": bob_amplitude,
         "levende":       True,
         "respawn_timer": 0,
         "squash_timer":  0,
@@ -331,25 +356,32 @@ def lav_bane_1(svaerhed_):
 def lav_bane_2(svaerhed_):
     if svaerhed_ == "let":
         spoegelser_ = [
-            lav_spoegelse(400,  350, 1.5, 350,  700),
-            lav_spoegelse(1100, 280, 1.8, 1000, 1400),
-            lav_spoegelse(1800, 320, 1.5, 1700, 2050),
+            lav_spoegelse(400,  330, 1.4, 300,  700,  0.035, bob_amplitude=170),
+            lav_spoegelse(900,  300, 1.5, 800,  1150, 0.040, bob_amplitude=190),
+            lav_spoegelse(1300, 340, 1.6, 1200, 1550, 0.035, bob_amplitude=160),
+            lav_spoegelse(1750, 310, 1.5, 1650, 1950, 0.040, bob_amplitude=180),
+            lav_spoegelse(2150, 330, 1.7, 2000, 2350, 0.035, bob_amplitude=170),
         ]
         svampe_ = [
-            lav_svamp(900, "lilla", 1.2, 850, 1050),
+            lav_svamp(700,  "lilla", 1.8, 600,  950,  kan_hoppe=True),
+            lav_svamp(1450, "roed",  1.8, 1300, 1650, kan_hoppe=True),
         ]
     else:
         spoegelser_ = [
-            lav_spoegelse(300,  350, 2.5, 250,  600),
-            lav_spoegelse(700,  250, 3.0, 600,  900,  0.06),
-            lav_spoegelse(1100, 320, 2.5, 1000, 1400),
-            lav_spoegelse(1500, 200, 2.8, 1400, 1750),
-            lav_spoegelse(1900, 350, 2.5, 1750, 2100),
-            lav_spoegelse(2200, 250, 2.8, 2050, 2350, 0.05),
+            lav_spoegelse(300,  320, 2.2, 200,  650,  0.040, bob_amplitude=200),
+            lav_spoegelse(700,  300, 2.4, 600,  950,  0.045, bob_amplitude=210),
+            lav_spoegelse(1100, 330, 2.2, 1000, 1400, 0.040, bob_amplitude=190),
+            lav_spoegelse(1500, 300, 2.4, 1400, 1800, 0.045, bob_amplitude=200),
+            lav_spoegelse(1900, 320, 2.2, 1750, 2150, 0.040, bob_amplitude=210),
+            lav_spoegelse(2250, 300, 2.4, 2050, 2350, 0.045, bob_amplitude=200),
+            lav_spoegelse(550,  310, 2.0, 400,  900,  0.035, bob_amplitude=180),
+            lav_spoegelse(1700, 330, 2.0, 1500, 2000, 0.035, bob_amplitude=180),
         ]
         svampe_ = [
-            lav_svamp(800,  "lilla", 2.0, 750,  1000),
-            lav_svamp(1700, "roed",  2.2, 1650, 1900),
+            lav_svamp(500,  "lilla", 2.6, 350,  750,  kan_hoppe=True),
+            lav_svamp(1000, "roed",  2.8, 850,  1200, kan_hoppe=True),
+            lav_svamp(1700, "lilla", 2.6, 1500, 1900, kan_hoppe=True),
+            lav_svamp(2100, "brun",  2.8, 2000, 2300, kan_hoppe=True),
         ]
     moenter_ = [
         lav_moent(215,  440),
@@ -508,6 +540,7 @@ def tilfoej_moenter(antal):
         moenter = moenter + 1
         if moenter % MOENTER_PER_LIV == 0:
             liv = liv + 1
+            sounds.extra_liv.play()
 
 
 def update():
@@ -588,7 +621,7 @@ def update():
         mist_liv()
         return
 
-    # 5a. Flyt svampe (med squash + respawn)
+    # 5a. Flyt svampe (med squash + respawn + valgfri hop-AI)
     for s in svampe:
         if s["squash_timer"] > 0:
             s["squash_timer"] -= 1
@@ -600,8 +633,14 @@ def update():
             if s["respawn_timer"] <= 0:
                 s["levende"] = True
                 s["rect"].x = s["start_x"]
+                s["rect"].y = JORD_Y - 35
                 s["vx"] = s["vx_init"]
+                s["vy"] = 0.0
+                s["paa_jorden"] = True
+                s["hop_cooldown"] = 0
             continue
+
+        # Vandret bevaegelse
         s["rect"].x = s["rect"].x + s["vx"]
         if s["rect"].left < s["min_x"]:
             s["rect"].left = s["min_x"]
@@ -609,6 +648,34 @@ def update():
         if s["rect"].right > s["max_x"]:
             s["rect"].right = s["max_x"]
             s["vx"] = -s["vx"]
+
+        # Hop-AI: hop hvis spilleren staar paa en platform over svampen
+        if s["kan_hoppe"]:
+            if s["hop_cooldown"] > 0:
+                s["hop_cooldown"] -= 1
+            if s["paa_jorden"] and s["hop_cooldown"] == 0:
+                dx = abs(spiller.centerx - s["rect"].centerx)
+                spiller_over = s["rect"].top - spiller.bottom
+                if dx < 250 and 30 < spiller_over < 240:
+                    s["vy"] = -16.0
+                    s["paa_jorden"] = False
+                    s["hop_cooldown"] = 90
+
+        # Tyngdekraft + lodret kollision (saa svampe lander paa platforme)
+        s["vy"] = s["vy"] + TYNGDEKRAFT
+        if s["vy"] > MAX_FALD_FART:
+            s["vy"] = MAX_FALD_FART
+        s["rect"].y = s["rect"].y + int(s["vy"])
+        s["paa_jorden"] = False
+        for p in alle_platforme:
+            if s["rect"].colliderect(p):
+                if s["vy"] > 0:
+                    s["rect"].bottom = p.top
+                    s["vy"] = 0
+                    s["paa_jorden"] = True
+                elif s["vy"] < 0:
+                    s["rect"].top = p.bottom
+                    s["vy"] = 0
 
     # 5b. Flyt spoegelser
     for g in spoegelser:
@@ -625,16 +692,41 @@ def update():
                 g["rect"].y = g["start_y"]
                 g["vx"] = g["vx_init"]
             continue
+        # Bevaeg lodret (bob) og vandret
         g["bob_phase"] = g["bob_phase"] + g["bob_speed"]
-        bob = int(math.sin(g["bob_phase"]) * 25)
+        bob = int(math.sin(g["bob_phase"]) * g["bob_amplitude"])
         g["rect"].y = g["start_y"] + bob
         g["rect"].x = g["rect"].x + g["vx"]
+
+        # Kant-bouncer
         if g["rect"].left < g["min_x"]:
             g["rect"].left = g["min_x"]
             g["vx"] = -g["vx"]
         if g["rect"].right > g["max_x"]:
             g["rect"].right = g["max_x"]
             g["vx"] = -g["vx"]
+
+        # Platform-kollision: skub spoegelset ud paa siden med mindst overlap
+        # (forhindrer at det krydser en hvilken som helst forhindring)
+        for p in alle_platforme:
+            if not g["rect"].colliderect(p):
+                continue
+            ov_top    = g["rect"].bottom - p.top
+            ov_bund   = p.bottom - g["rect"].top
+            ov_venstre = g["rect"].right - p.left
+            ov_hoejre  = p.right - g["rect"].left
+            mindst = min(ov_top, ov_bund, ov_venstre, ov_hoejre)
+            if mindst == ov_top:
+                g["rect"].bottom = p.top
+            elif mindst == ov_bund:
+                g["rect"].top = p.bottom
+            elif mindst == ov_venstre:
+                g["rect"].right = p.left
+                g["vx"] = -abs(g["vx"])
+            else:
+                g["rect"].left = p.right
+                g["vx"] = abs(g["vx"])
+            break
 
     # 5c. Flyt boss + spawn fireballs
     if boss is not None:
@@ -806,7 +898,7 @@ def tegn_menu():
                      center=(WIDTH // 2, 70), fontsize=80, color="white")
     screen.draw.text("3 baner. Saml moenter. Slaa bossen.",
                      center=(WIDTH // 2, 130), fontsize=28, color="white")
-    screen.draw.text("Hver 10 moenter = 1 ekstra liv",
+    screen.draw.text("Hver 5 moenter = 1 ekstra liv",
                      center=(WIDTH // 2, 165), fontsize=22, color=(255, 220, 60))
     screen.draw.text("Vaelg svaerhedsgrad",
                      center=(WIDTH // 2, 215), fontsize=36, color="white")
@@ -872,7 +964,7 @@ def tegn_verden():
         if sx < -100 or sx > WIDTH + 100:
             continue
         if s["squash_timer"] > 0:
-            screen.blit(sprite_svampe_flat[s["farve"]], (sx, JORD_Y - 8))
+            screen.blit(sprite_svampe_flat[s["farve"]], (sx, s["rect"].bottom - 8))
         elif s["levende"]:
             screen.blit(sprite_svampe[s["farve"]], (sx, s["rect"].y))
 
@@ -912,16 +1004,31 @@ def tegn_verden():
             sprite = sprite_sonic_venstre
         screen.blit(sprite, (spiller.x - camera_x, spiller.y))
 
-    # HUD
-    screen.draw.text("Liv: " + str(liv), topleft=(10, 10), fontsize=30, color="white")
-    screen.draw.text("Moenter: " + str(moenter), topleft=(10, 42),
+
+
+def tegn_hud():
+    """Tegner HUD med skarp moderne skrift og hjerter (kaldes EFTER pixelater)."""
+    # Hjerter for liv (max 10 vises)
+    hjerte_w = sprite_hjerte.get_width()
+    vis_liv = min(liv, 10)
+    for i in range(vis_liv):
+        screen.blit(sprite_hjerte, (10 + i * (hjerte_w + 4), 10))
+    if liv > 10:
+        screen.draw.text("x" + str(liv),
+                         topleft=(10 + 10 * (hjerte_w + 4) + 4, 12),
+                         fontsize=22, color="white")
+
+    # Moenter
+    screen.blit(pygame.transform.scale(sprite_moent, (22, 22)), (10, 42))
+    screen.draw.text(str(moenter), topleft=(38, 44),
                      fontsize=24, color=(255, 220, 60))
+
     if svaerhed == "let":
         sv_tekst = "Svaerhed: LET"
     else:
         sv_tekst = "Svaerhed: SVAER"
-    screen.draw.text(sv_tekst, topleft=(10, 70), fontsize=22, color="white")
-    screen.draw.text(bane_navn, topleft=(10, 95), fontsize=22, color="white")
+    screen.draw.text(sv_tekst, topleft=(10, 72), fontsize=22, color="white")
+    screen.draw.text(bane_navn, topleft=(10, 96), fontsize=22, color="white")
 
     # Boss HP-bar
     if boss is not None and boss["hp"] > 0:
@@ -984,6 +1091,7 @@ def draw():
                          fontsize=24, color="white")
 
     pixelater()
+    tegn_hud()
 
 
 pgzrun.go()

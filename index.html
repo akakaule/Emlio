@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sonic-demo — det lille platformspil</title>
+<meta name="description" content="Et hjemmelavet platformspil i Sonic-stil med 3 baner, svampe, spøgelser og en skildpadde-boss. Lavet i Python med Pygame Zero. Helt gratis.">
+<style>
+  :root{
+    --himmel:#6eb4f0;
+    --himmel-dyb:#3b8fdc;
+    --graes:#3cb446;
+    --graes-top:#238d2d;
+    --jord:#825a32;
+    --sonic:#285ad8;
+    --sko:#dc1e1e;
+    --gul:#ffd23d;
+    --tekst:#0f1a2b;
+    --kort:#ffffff;
+    --skygge:0 10px 30px rgba(15,26,43,.18);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    color:var(--tekst);
+    background:#eaf3fb;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--himmel-dyb);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+  /* Top-bar */
+  header.bar{
+    position:sticky;top:0;z-index:10;
+    background:rgba(255,255,255,.85);
+    backdrop-filter:saturate(140%) blur(8px);
+    border-bottom:1px solid rgba(15,26,43,.08);
+  }
+  .bar-inner{display:flex;align-items:center;justify-content:space-between;height:60px}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:700}
+  .logo-dot{
+    width:26px;height:26px;border-radius:50%;
+    background:var(--sonic);
+    box-shadow:inset -4px -4px 0 rgba(0,0,0,.15), inset 5px 5px 0 rgba(255,255,255,.2);
+  }
+  nav a{margin-left:22px;color:var(--tekst);font-weight:500}
+
+  /* Hero */
+  .hero{
+    position:relative;
+    background:linear-gradient(180deg,var(--himmel) 0%, #94c8f3 70%, #cfe6f8 100%);
+    overflow:hidden;
+    padding:80px 0 0;
+  }
+  .hero .wrap{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center;position:relative;z-index:2}
+  .hero h1{
+    font-size:64px;line-height:1.05;margin:0 0 16px;
+    letter-spacing:-1px;
+    text-shadow:0 2px 0 rgba(255,255,255,.4);
+  }
+  .hero h1 .accent{color:var(--sonic)}
+  .hero p.lede{font-size:20px;margin:0 0 28px;max-width:540px}
+  .cta-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+  .btn{
+    display:inline-flex;align-items:center;gap:10px;
+    padding:14px 22px;border-radius:999px;font-weight:700;
+    border:0;cursor:pointer;font-size:16px;
+    transition:transform .08s ease, box-shadow .15s ease;
+  }
+  .btn:hover{transform:translateY(-1px);text-decoration:none}
+  .btn-primary{background:var(--sonic);color:#fff;box-shadow:var(--skygge)}
+  .btn-primary:hover{background:#1d49b8}
+  .btn-ghost{background:rgba(255,255,255,.7);color:var(--tekst)}
+  .btn-ghost:hover{background:#fff}
+  .gratis-badge{
+    display:inline-flex;align-items:center;gap:6px;
+    background:#e3f6e6;color:#1f7a2a;
+    padding:6px 14px;border-radius:999px;font-weight:700;font-size:14px;
+    margin-bottom:18px;border:1px solid rgba(31,122,42,.2);
+  }
+  .gratis-badge::before{
+    content:"";width:8px;height:8px;border-radius:50%;background:#1f7a2a;
+  }
+
+  /* Hero scene (CSS-tegninger) */
+  .scene{
+    position:relative;height:380px;border-radius:18px;
+    background:linear-gradient(180deg,#7fbef2,#b6d8f3);
+    box-shadow:var(--skygge);overflow:hidden;
+  }
+  .sky{position:absolute;background:#fff;border-radius:50%;filter:blur(.3px);opacity:.95}
+  .sky.s1{width:90px;height:50px;top:30px;left:30px}
+  .sky.s2{width:120px;height:60px;top:60px;left:160px}
+  .sky.s3{width:70px;height:40px;top:20px;right:40px}
+  .ground{
+    position:absolute;left:0;right:0;bottom:0;height:90px;
+    background:linear-gradient(180deg,var(--graes) 0 14%, var(--graes-top) 14% 18%, var(--jord) 18% 100%);
+  }
+  .platform{
+    position:absolute;background:var(--graes);height:18px;border-radius:3px;
+    box-shadow:0 3px 0 var(--graes-top), 0 6px 0 var(--jord);
+  }
+  .p1{width:120px;left:60px;bottom:160px}
+  .p2{width:90px;left:230px;bottom:230px}
+  .p3{width:130px;right:60px;bottom:180px}
+
+  .sonic{
+    position:absolute;left:30%;bottom:90px;width:64px;height:80px;
+    animation:hop 1.6s ease-in-out infinite;
+  }
+  .sonic .body{
+    position:absolute;inset:18px 6px 12px 6px;
+    background:var(--sonic);border-radius:50%;
+    box-shadow:inset -6px -6px 0 rgba(0,0,0,.18), inset 6px 8px 0 rgba(255,255,255,.18);
+  }
+  .sonic .face{
+    position:absolute;width:24px;height:22px;border-radius:50%;
+    background:#ffd2aa;right:6px;top:32px;
+  }
+  .sonic .eye{
+    position:absolute;width:14px;height:18px;background:#fff;border-radius:50%;
+    right:14px;top:24px;
+  }
+  .sonic .pupil{
+    position:absolute;width:6px;height:6px;background:#0a7a0a;border-radius:50%;
+    right:18px;top:34px;
+  }
+  .sonic .shoe{
+    position:absolute;width:22px;height:14px;background:var(--sko);border-radius:8px;
+    bottom:0;box-shadow:inset 0 -3px 0 rgba(0,0,0,.18);
+  }
+  .sonic .shoe.l{left:8px}
+  .sonic .shoe.r{right:8px}
+  .sonic .spike{
+    position:absolute;width:0;height:0;
+    border-top:8px solid transparent;border-bottom:8px solid transparent;
+    border-right:14px solid #1c3a8a;
+    left:-2px;top:18px;transform:rotate(-10deg);
+  }
+  .sonic .spike.b{top:34px;border-right-color:#1c3a8a}
+  @keyframes hop{
+    0%,100%{transform:translateY(0)}
+    50%{transform:translateY(-22px)}
+  }
+
+  /* Svamp */
+  .svamp{
+    position:absolute;width:46px;height:40px;bottom:90px;
+    animation:patrol 4s ease-in-out infinite;
+  }
+  .svamp.r{right:18%}
+  .svamp .hat{
+    position:absolute;left:0;right:0;top:0;height:24px;
+    background:#dc1e1e;border-radius:50% 50% 30% 30% / 70% 70% 30% 30%;
+  }
+  .svamp .dot{position:absolute;background:#fff;border-radius:50%}
+  .svamp .d1{width:8px;height:8px;left:8px;top:8px}
+  .svamp .d2{width:10px;height:10px;left:20px;top:4px}
+  .svamp .d3{width:7px;height:7px;left:32px;top:9px}
+  .svamp .stem{position:absolute;left:8px;right:8px;top:22px;bottom:0;background:#f4e6c2;border-radius:0 0 6px 6px}
+  @keyframes patrol{
+    0%,100%{transform:translateX(0)}
+    50%{transform:translateX(-40px)}
+  }
+
+  /* Spøgelse */
+  .spook{
+    position:absolute;width:46px;height:48px;
+    top:90px;left:55%;
+    animation:bob 2.2s ease-in-out infinite;
+    filter:drop-shadow(0 6px 8px rgba(0,0,0,.1));
+  }
+  .spook .body{
+    position:absolute;left:0;right:0;top:0;bottom:8px;
+    background:#f5f5fa;border-radius:50% 50% 12% 12% / 60% 60% 12% 12%;
+  }
+  .spook::before, .spook::after{
+    content:"";position:absolute;bottom:0;width:11px;height:14px;
+    background:#f5f5fa;border-radius:50% 50% 50% 50% / 80% 80% 30% 30%;
+  }
+  .spook::before{left:0}
+  .spook::after{right:0}
+  .spook .ed{
+    position:absolute;width:10px;height:10px;border-radius:50%;background:#fff;
+    top:14px;
+  }
+  .spook .ed.l{left:8px}
+  .spook .ed.r{right:8px}
+  .spook .ep{
+    position:absolute;width:4px;height:4px;border-radius:50%;background:#2828dc;top:17px;
+  }
+  .spook .ep.l{left:11px}
+  .spook .ep.r{right:11px}
+  @keyframes bob{
+    0%,100%{transform:translateY(0)}
+    50%{transform:translateY(-14px)}
+  }
+
+  /* Boss-skildpadde i hero */
+  .boss-mini{
+    position:absolute;right:40px;bottom:90px;width:88px;height:64px;
+  }
+  .boss-mini .belly{
+    position:absolute;left:8px;right:8px;bottom:0;height:38px;
+    background:#ffd864;border-radius:50%;
+  }
+  .boss-mini .shell{
+    position:absolute;left:8px;right:8px;top:0;height:42px;
+    background:#3a9b3a;border-radius:50% 50% 30% 30% / 80% 80% 20% 20%;
+  }
+  .boss-mini .spike{
+    position:absolute;width:0;height:0;
+    border-left:5px solid transparent;border-right:5px solid transparent;
+    border-bottom:9px solid #fff;top:4px;
+  }
+  .boss-mini .s1{left:24px}
+  .boss-mini .s2{left:40px}
+  .boss-mini .s3{left:56px}
+  .boss-mini .head{
+    position:absolute;left:0;top:24px;width:24px;height:24px;
+    background:#ffd864;border-radius:50%;
+  }
+  .boss-mini .horn{position:absolute;width:0;height:0;border-left:3px solid transparent;border-right:3px solid transparent;border-bottom:8px solid #c83232;top:20px}
+  .boss-mini .h1{left:5px}
+  .boss-mini .h2{left:14px}
+  .boss-mini .eye{position:absolute;top:32px;width:5px;height:5px;background:#fff;border-radius:50%}
+  .boss-mini .e1{left:6px}
+  .boss-mini .e2{left:14px}
+  .boss-mini .pup{position:absolute;top:33px;width:2px;height:3px;background:#c80000;border-radius:50%}
+  .boss-mini .p1{left:7px}
+  .boss-mini .p2{left:15px}
+
+  /* Sektioner */
+  section{padding:72px 0}
+  section h2{font-size:36px;margin:0 0 12px;letter-spacing:-.5px}
+  section .sub{color:#4d5a6f;margin:0 0 36px;font-size:18px;max-width:680px}
+
+  .features{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .card{
+    background:var(--kort);border-radius:14px;padding:24px;
+    box-shadow:var(--skygge);
+    border:1px solid rgba(15,26,43,.06);
+  }
+  .card .ikon{
+    width:42px;height:42px;border-radius:10px;display:grid;place-items:center;
+    margin-bottom:14px;font-size:22px;
+  }
+  .ikon.b1{background:#e8f1ff;color:var(--sonic)}
+  .ikon.b2{background:#fee9e9;color:#cc1f1f}
+  .ikon.b3{background:#fff6cc;color:#a07a00}
+  .ikon.b4{background:#e3f6e6;color:#1f7a2a}
+  .ikon.b5{background:#f0e7ff;color:#5a30c2}
+  .ikon.b6{background:#ffe7d1;color:#a35413}
+  .card h3{margin:0 0 6px;font-size:18px}
+  .card p{margin:0;color:#4d5a6f}
+
+  /* Baner */
+  .baner{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .bane{
+    background:var(--kort);border-radius:14px;overflow:hidden;
+    box-shadow:var(--skygge);border:1px solid rgba(15,26,43,.06);
+    display:flex;flex-direction:column;
+  }
+  .bane .top{
+    height:120px;display:grid;place-items:center;color:#fff;font-weight:800;
+    font-size:60px;letter-spacing:-1px;
+  }
+  .bane.b1 .top{background:linear-gradient(135deg,#3cb446,#1f7a2a)}
+  .bane.b2 .top{background:linear-gradient(135deg,#5a30c2,#2c1660)}
+  .bane.b3 .top{background:linear-gradient(135deg,#dc6432,#8a2c14)}
+  .bane .body{padding:22px}
+  .bane h3{margin:0 0 8px;font-size:20px}
+  .bane .modstandere{
+    display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;
+  }
+  .pill{
+    background:#eaf3fb;color:#0f1a2b;
+    padding:5px 12px;border-radius:999px;font-size:13px;font-weight:600;
+  }
+
+  /* Monstre */
+  .monstre{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .monster{
+    background:var(--kort);border-radius:14px;padding:20px;text-align:center;
+    box-shadow:var(--skygge);border:1px solid rgba(15,26,43,.06);
+  }
+  .monster .scenebox{
+    height:120px;background:#dceaf6;border-radius:10px;
+    position:relative;margin-bottom:14px;overflow:hidden;
+  }
+  .monster h3{margin:0 0 4px;font-size:17px}
+  .monster p{margin:0;color:#4d5a6f;font-size:14px}
+
+  /* Kontroller */
+  .kontrol{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:16px;
+  }
+  .key{
+    background:#fff;border-radius:12px;padding:20px;text-align:center;
+    box-shadow:var(--skygge);border:1px solid rgba(15,26,43,.06);
+  }
+  .kbd{
+    display:inline-block;padding:8px 14px;border-radius:8px;
+    background:#0f1a2b;color:#fff;font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-weight:700;letter-spacing:.5px;margin-bottom:10px;
+    box-shadow:0 3px 0 #000;
+  }
+  .key p{margin:0;color:#4d5a6f}
+
+  /* Hent */
+  .hent{
+    background:linear-gradient(135deg,var(--sonic),#1d49b8);color:#fff;
+    border-radius:20px;padding:48px;display:grid;grid-template-columns:1.2fr .8fr;gap:32px;align-items:center;
+    box-shadow:var(--skygge);
+  }
+  .hent h2{color:#fff;margin:0 0 8px}
+  .hent p{margin:0 0 20px;opacity:.92}
+  .hent .btn-primary{background:#fff;color:var(--sonic)}
+  .hent .btn-primary:hover{background:#f0f0f0}
+  .hent-boks{
+    background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);
+    border-radius:14px;padding:24px;text-align:center;
+  }
+  .hent-boks .stor{font-size:48px;font-weight:800;line-height:1}
+  .hent-boks .badge{
+    display:inline-block;background:var(--gul);color:#3a2900;
+    padding:4px 10px;border-radius:999px;font-weight:700;font-size:13px;margin-bottom:8px;
+  }
+
+  /* Krav */
+  .krav{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .krav .card h3{margin-bottom:12px}
+  .krav ul{margin:0;padding-left:20px;color:#4d5a6f}
+  .krav li{margin-bottom:6px}
+
+  /* FAQ */
+  details{
+    background:#fff;border-radius:12px;padding:18px 22px;margin-bottom:12px;
+    box-shadow:var(--skygge);border:1px solid rgba(15,26,43,.06);
+  }
+  details summary{cursor:pointer;font-weight:700;font-size:17px;outline:none}
+  details[open] summary{margin-bottom:10px}
+  details p{margin:0;color:#4d5a6f}
+
+  footer{
+    background:#0f1a2b;color:#cdd6e3;padding:36px 0;margin-top:60px;
+  }
+  footer .wrap{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+  footer a{color:#9ec3ff}
+
+  @media (max-width:760px){
+    .hero{padding-top:40px}
+    .hero .wrap{grid-template-columns:1fr}
+    .hero h1{font-size:42px}
+    .scene{height:300px}
+    .features,.kontrol,.krav,.baner{grid-template-columns:1fr}
+    .monstre{grid-template-columns:repeat(2,1fr)}
+    .hent{grid-template-columns:1fr;padding:32px}
+    nav a{margin-left:14px;font-size:14px}
+  }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="wrap bar-inner">
+    <div class="logo">
+      <span class="logo-dot"></span>
+      <span>Sonic-demo</span>
+    </div>
+    <nav>
+      <a href="#features">Funktioner</a>
+      <a href="#baner">Baner</a>
+      <a href="#monstre">Monstre</a>
+      <a href="#hent">Hent</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <span class="gratis-badge">100% gratis · Open source</span>
+      <h1>Løb. Hop. <span class="accent">Knus monstrene.</span></h1>
+      <p class="lede">Et hyggeligt platformspil i Sonic-stil med <strong>3 baner</strong>, fræk svampe-fauna, hjemsøgende spøgelser og en arrig skildpadde-boss. Lavet i Python — perfekt til at lege med og bygge videre på.</p>
+      <div class="cta-row">
+        <a href="#hent" class="btn btn-primary">Hent gratis</a>
+        <a href="#features" class="btn btn-ghost">Se funktioner</a>
+      </div>
+    </div>
+
+    <div class="scene" aria-hidden="true">
+      <div class="sky s1"></div>
+      <div class="sky s2"></div>
+      <div class="sky s3"></div>
+
+      <div class="platform p1"></div>
+      <div class="platform p2"></div>
+      <div class="platform p3"></div>
+
+      <div class="svamp">
+        <div class="hat"></div>
+        <div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div>
+        <div class="stem"></div>
+      </div>
+
+      <div class="spook">
+        <div class="body"></div>
+        <div class="ed l"></div><div class="ed r"></div>
+        <div class="ep l"></div><div class="ep r"></div>
+      </div>
+
+      <div class="sonic">
+        <div class="spike"></div>
+        <div class="spike b"></div>
+        <div class="body"></div>
+        <div class="face"></div>
+        <div class="eye"></div>
+        <div class="pupil"></div>
+        <div class="shoe l"></div>
+        <div class="shoe r"></div>
+      </div>
+
+      <div class="boss-mini">
+        <div class="belly"></div>
+        <div class="shell"></div>
+        <div class="spike s1"></div><div class="spike s2"></div><div class="spike s3"></div>
+        <div class="head"></div>
+        <div class="horn h1"></div><div class="horn h2"></div>
+        <div class="eye e1"></div><div class="eye e2"></div>
+        <div class="pup p1"></div><div class="pup p2"></div>
+      </div>
+
+      <div class="ground"></div>
+    </div>
+  </div>
+  <div style="height:60px"></div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <h2>Det er pakket med ting</h2>
+    <p class="sub">Et lille spil med stor sjæl. Alt er bygget fra bunden i Pygame Zero — sprites, fysik, lyd, kamera og C64-pixelering.</p>
+
+    <div class="features">
+      <div class="card">
+        <div class="ikon b1">🗺️</div>
+        <h3>3 unikke baner</h3>
+        <p>Skoven, spøgelses-grotten og en arenakamp mod skildpadde-bossen. Hver bane sit eget tema og sine egne fjender.</p>
+      </div>
+      <div class="card">
+        <div class="ikon b2">👟</div>
+        <h3>Stomp-mekanik</h3>
+        <p>Hop oven på fjenderne for at slå dem ihjel — du får et lille spring tilbage som tak. Ramme dem fra siden? Så mister du et liv.</p>
+      </div>
+      <div class="card">
+        <div class="ikon b3">⚔️</div>
+        <h3>Bosskamp</h3>
+        <p>Skildpadden har 3 (let) eller 5 (svær) HP. Hop på skallen — men pas på, den bliver kortvarigt usårlig efter hvert hit.</p>
+      </div>
+      <div class="card">
+        <div class="ikon b4">🎚️</div>
+        <h3>To sværhedsgrader</h3>
+        <p>LET for nybegyndere eller den lille i familien — SVÆR med flere monstre, hurtigere fart og en sejere boss.</p>
+      </div>
+      <div class="card">
+        <div class="ikon b5">🕹️</div>
+        <h3>C64-pixelering</h3>
+        <p>Hele billedet skaleres ned og op igen for et klassisk pikselret retro-look. Få linjer kode — stor effekt.</p>
+      </div>
+      <div class="card">
+        <div class="ikon b6">🛠️</div>
+        <h3>Hackbar Python-kode</h3>
+        <p>Læselig, dansk-kommenteret og veldokumenteret. Tilføj nye baner, monster-typer eller egne sprites på en eftermiddag.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="baner" style="background:#dceaf6">
+  <div class="wrap">
+    <h2>Tre baner. Hver sin stemning.</h2>
+    <p class="sub">Du starter blødt i skoven, kæmper dig gennem grotten og slutter med en bosskamp i arenaen.</p>
+
+    <div class="baner">
+      <div class="bane b1">
+        <div class="top">1</div>
+        <div class="body">
+          <h3>Skoven</h3>
+          <p>Lang, scrollende bane med flydende platforme. God til at lære at hoppe og bevæge sig.</p>
+          <div class="modstandere">
+            <span class="pill">🍄 Røde svampe</span>
+            <span class="pill">🍄 Lilla svampe</span>
+            <span class="pill">🍄 Brune svampe</span>
+          </div>
+        </div>
+      </div>
+      <div class="bane b2">
+        <div class="top">2</div>
+        <div class="body">
+          <h3>Spøgelses-grotten</h3>
+          <p>Mørkere stemning. Spøgelser svæver gennem luften med sinusagtig bob — og enkelte svampe lurer stadig på jorden.</p>
+          <div class="modstandere">
+            <span class="pill">👻 Spøgelser</span>
+            <span class="pill">🍄 Svampe</span>
+          </div>
+        </div>
+      </div>
+      <div class="bane b3">
+        <div class="top">3</div>
+        <div class="body">
+          <h3>Skildpadde-bossen</h3>
+          <p>Ingen scrolling — én skærm, ét monster. Hop på skallen indtil HP'en er væk og du har vundet.</p>
+          <div class="modstandere">
+            <span class="pill">🐢 Skildpadde-boss</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="monstre">
+  <div class="wrap">
+    <h2>Monstre du skal hoppe på</h2>
+    <p class="sub">Fire fjende-typer, hver med deres egen opførsel og fart.</p>
+
+    <div class="monstre">
+      <div class="monster">
+        <div class="scenebox">
+          <div class="svamp" style="left:50%;top:50%;transform:translate(-50%,-30%);bottom:auto;animation:none">
+            <div class="hat"></div>
+            <div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div>
+            <div class="stem"></div>
+          </div>
+        </div>
+        <h3>Svampe</h3>
+        <p>Tre farver, tre farter. Patruljerer mellem to punkter på jorden.</p>
+      </div>
+      <div class="monster">
+        <div class="scenebox">
+          <div class="spook" style="left:50%;top:50%;transform:translate(-50%,-50%);animation:none">
+            <div class="body"></div>
+            <div class="ed l"></div><div class="ed r"></div>
+            <div class="ep l"></div><div class="ep r"></div>
+          </div>
+        </div>
+        <h3>Spøgelser</h3>
+        <p>Svæver vandret og bobler op og ned. Sværere at lande på end svampe.</p>
+      </div>
+      <div class="monster">
+        <div class="scenebox">
+          <div class="boss-mini" style="left:50%;top:50%;transform:translate(-50%,-50%) scale(.9);bottom:auto;right:auto">
+            <div class="belly"></div>
+            <div class="shell"></div>
+            <div class="spike s1"></div><div class="spike s2"></div><div class="spike s3"></div>
+            <div class="head"></div>
+            <div class="horn h1"></div><div class="horn h2"></div>
+            <div class="eye e1"></div><div class="eye e2"></div>
+            <div class="pup p1"></div><div class="pup p2"></div>
+          </div>
+        </div>
+        <h3>Skildpadde-boss</h3>
+        <p>3 eller 5 HP afhængigt af sværhedsgrad. Bliver usårlig kortvarigt efter hvert hit.</p>
+      </div>
+      <div class="monster">
+        <div class="scenebox" style="display:grid;place-items:center">
+          <div style="font-size:48px">⭐</div>
+        </div>
+        <h3>Bonus: Squash & respawn</h3>
+        <p>Slåede monstre bliver flade et øjeblik, og kommer tilbage efter ca. 5 sekunder — banen tømmes ikke.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="kontrol" style="background:#dceaf6">
+  <div class="wrap">
+    <h2>Kontroller du kan huske</h2>
+    <p class="sub">Få taster. Det er alt du skal lære.</p>
+    <div class="kontrol">
+      <div class="key"><span class="kbd">L / S</span><p>I menuen: vælg LET eller SVÆR</p></div>
+      <div class="key"><span class="kbd">← →</span><p>Løb til højre og venstre</p></div>
+      <div class="key"><span class="kbd">↑ / Mellemrum</span><p>Hop op på platforme og oven på fjenderne</p></div>
+      <div class="key"><span class="kbd">Mellemrum</span><p>Spil igen efter Game Over</p></div>
+      <div class="key"><span class="kbd">M</span><p>Tilbage til menuen fra slut-skærmen</p></div>
+      <div class="key"><span class="kbd">Esc</span><p>Luk spillet (standard Pygame Zero)</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="hent">
+  <div class="wrap">
+    <div class="hent">
+      <div>
+        <h2>Hent spillet — det er gratis</h2>
+        <p>Hele kildekoden, lydene og en LÆS_MIG-guide. Ingen tilmelding, ingen reklamer, ingen abonnement. Bare hent og spil.</p>
+        <a href="#" class="btn btn-primary">Hent ZIP</a>
+      </div>
+      <div class="hent-boks">
+        <div class="badge">FRIT TILGÆNGELIGT</div>
+        <div class="stor">0 kr.</div>
+        <div style="opacity:.85;font-size:14px;margin-top:10px">Engangs-download · Open source · Ingen små bogstaver</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="krav">
+  <div class="wrap">
+    <h2>Systemkrav</h2>
+    <p class="sub">Spillet er let — det kører på næsten alt der har Python.</p>
+    <div class="krav">
+      <div class="card">
+        <h3>Minimum</h3>
+        <ul>
+          <li>Windows, macOS eller Linux</li>
+          <li>Python 3.8 eller nyere</li>
+          <li>Pygame Zero (<code>pip install pgzero</code>)</li>
+          <li>Tastatur og højttalere</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Anbefalet</h3>
+        <ul>
+          <li>Python 3.11+</li>
+          <li>Thonny eller VS Code til at læse koden</li>
+          <li>Lyst til at pille ved tallene og lave dine egne baner</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="faq" style="background:#dceaf6">
+  <div class="wrap">
+    <h2>Ofte stillede spørgsmål</h2>
+    <p class="sub"></p>
+
+    <details open>
+      <summary>Er spillet virkelig helt gratis?</summary>
+      <p>Ja. Spillet, kildekoden og lydene er gratis — ingen betaling, ingen tilmelding, ingen reklamer. Du må også gerne ændre i koden og dele din egen version.</p>
+    </details>
+
+    <details>
+      <summary>Skal jeg kunne programmere for at spille?</summary>
+      <p>Nej. Du kan spille det med det samme efter at have installeret Python og Pygame Zero. Men du kan <em>også</em> åbne kildekoden og pille ved den — det er meningen.</p>
+    </details>
+
+    <details>
+      <summary>Hvad får jeg når jeg henter det?</summary>
+      <p>Den fulde Python-fil <code>spil.py</code>, lydeffekterne i mappen <code>sounds/</code>, og en LÆS_MIG-guide der forklarer hvordan du kommer i gang og bygger videre.</p>
+    </details>
+
+    <details>
+      <summary>Hvordan slår jeg monstrene ihjel?</summary>
+      <p>Hop oven på dem. Lander du <em>oven på</em> en svamp, et spøgelse eller skildpadde-bossen, så slår du dem ihjel og får et lille hop tilbage. Rør du dem fra siden, mister du et liv.</p>
+    </details>
+
+    <details>
+      <summary>Kommer monstre tilbage når jeg har slået dem ihjel?</summary>
+      <p>Ja — efter ca. 5 sekunder respawner svampe og spøgelser tilbage på deres startposition. Kun skildpadde-bossen er væk for evigt når dens HP er nul.</p>
+    </details>
+
+    <details>
+      <summary>Kan jeg ændre i spillet?</summary>
+      <p>Ja — det er hele pointen. Tilføj flere baner, lav nye monster-farver, gør banen længere, eller skru på sværhedsgrad-tallene i koden.</p>
+    </details>
+
+    <details>
+      <summary>Er det også for børn?</summary>
+      <p>Ja. Spillet er enkelt at spille, og koden er skrevet på dansk med kommentarer — perfekt til at vise et barn hvad programmering kan.</p>
+    </details>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>© 2026 Sonic-demo · lavet med ❤ og <a href="https://pygame-zero.readthedocs.io">Pygame Zero</a></div>
+    <div><a href="#">Kontakt</a> · <a href="#">Kildekode</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,10 @@
+# Python build artifacts
+__pycache__/
+*.pyc
+*.pyo
+
+# Local Claude Code state
+.claude/
+
+# Crash dumps
+*.stackdump

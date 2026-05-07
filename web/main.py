@@ -18,7 +18,7 @@
 #                           Hop oven paa monstre for at slaa dem ihjel
 #   Naar spillet er slut:   MELLEMRUM = spil igen, M = tilbage til menu
 
-import pgzrun
+import pgzero.runner as pgzrun
 import pygame
 import math
 from pygame import Rect

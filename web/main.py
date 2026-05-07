@@ -1,4 +1,4 @@
-#!pgzrun
+#!pgzero
 # Sonic-stil platformspil med 3 baner, monstre, boss, moenter og fireballs
 #
 # Bane 1: Skoven        - kun svampe
